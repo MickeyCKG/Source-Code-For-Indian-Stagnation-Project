@@ -9,7 +9,7 @@ tic
 % scenario
 scenario_name='ssp585'
 % note that ssp370_lowNTCF will automatically read in ssp370
-% note that read_global and read_regional are only for monthly read-in, not for daily read-in
+% note that read_global is only for monthly read-in, not for daily read-in
 
 % model and variables
 switch(scenario_name)
@@ -22,8 +22,6 @@ switch(scenario_name)
         % variables
         var_name={'tas','ta'};
         read_global=[1,0];
-        read_regional=[1,0];
-        read_regional_emi=[];
 
         % vertical layer 
         read_3d_form=[0,1]; % 0 for 2-d variables, 1 for 3-d variables
@@ -40,8 +38,6 @@ switch(scenario_name)
         % variables
         var_name={'tas','ta','hurs','hur','huss','hus','pr','uas','vas','sfcWind','ua','va','ws','psl'};
         read_global=[1,0,0,0,0,0,0,0,0,0,0,0,0,0];
-        read_regional=[1,0,0,0,0,0,0,0,0,0,0,0,0,0];
-        read_regional_emi=[];
 
         % vertical layer 
         read_3d_form=[0,1,0,1,0,1,0,0,0,0,1,1,1,0]; % 0 for 2-d variables, 1 for 3-d variables
@@ -64,8 +60,6 @@ switch(scenario_name)
         % variables
         var_name={'tas','ta','pr','sfcWind','mmrpm2p5','mmrbc','mmroa','mmrsoa','mmrdust','mmrss','mmrso4','mmrnh4','mmrno3','calculated_pm25','ps'};
         read_global=[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-        read_regional=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-        read_regional_emi=[];
 
         % vertical layer 
         read_3d_form=[0,1,0,0,1,1,1,1,1,1,1,1,1,0,0]; % 0 for 2-d variables, 1 for 3-d variables
@@ -82,8 +76,6 @@ switch(scenario_name)
         % variables
         var_name={'tas','ta','pr','sfcWind','mmrpm2p5','mmrbc','mmroa','mmrsoa','mmrdust','mmrss','mmrso4','ps'};
         read_global=[1,0,0,0,0,0,0,0,0,0,0,0];
-        read_regional=[0,0,0,0,0,0,0,0,0,0,0,0];
-        read_regional_emi=[];
 
         % vertical layer 
         read_3d_form=[0,1,0,0,1,1,1,1,1,1,1,0]; % 0 for 2-d variables, 1 for 3-d variables
@@ -104,35 +96,8 @@ num_days=[31,28,31,30,31,30,31,31,30,31,30,31];
 
 %% Read and Regrid
 
-% load mask for India
-load india_mask_CMIP6_monthly.mat
-mask{1}=new_mask_india; % India mask
-mask{1}(mask{1}>0)=1;
-mask{1}(mask{1}~=1)=nan;
-mask{2}=new_mask_india; % northern India mask
-mask{2}(mask{2}>0 & mask{2}<3)=1;
-mask{2}(mask{2}~=1)=nan;
-mask{3}=new_mask_india; % southern India mask
-mask{3}(mask{3}==1)=nan;
-mask{3}(mask{3}==3)=1;
-mask{3}(mask{3}~=1)=nan;
-mask{4}=IGP_mask; % IGP mask
-
-% calculate Grid Area (km2)
-if ~isempty(read_regional_emi) 
-    R=6371.004;
-    RESO_GRID=1;
-    GRID_AREA=zeros(size(rlon));
-    for i=1:1:size(rlon,1)
-        for j=1:1:size(rlon,2)
-            GRID_AREA(i,j)=2*R^2*pi*RESO_GRID/360*(sin((rlat(i,j)+0.5*RESO_GRID)/180*pi)-sin((rlat(i,j)-0.5*RESO_GRID)/180*pi));
-        end
-    end
-end
-
 output_regrid=cell(sum(num_ensemble),length(var_name)); % models (total ensembles) X variables, regridded
 CMIP_global=cell(1,length(var_name)); % variables, averaged
-CMIP_regional=cell(length(mask),length(var_name)); % variables, averaged
 
 st_ensemble=1;
 for model=1:1:length(model_name)
@@ -264,33 +229,6 @@ for model=1:1:length(model_name)
                 end
 
             end
-
-            this_flag=read_regional(var);
-
-            if this_flag==1 && ~isempty(output{var}) % calculate regional mean after regrid
-                if length(size(output_regrid{ensemble_id(en),var}))==3 % by default, 2-D variable)
-                    for t=1:1:size(output_regrid{ensemble_id(en),var},3) % dimension of months
-                        if ~isempty(read_regional_emi) && read_regional_emi(var)==1 % regional total emissions
-                            this_month=mod(t,12);
-                            if this_month==0
-                                this_month=12;
-                            end
-                            for rg=1:1:length(mask) % dimension of regions
-                                tmp=reshape(squeeze(output_regrid{ensemble_id(en),var}(:,:,t)).*mask{rg}.*GRID_AREA,1,[]);
-                                tmp(isnan(tmp))=[];
-                                CMIP_regional{rg,var}(ensemble_id(en),t)=sum(tmp)*1e6*3600*24*num_days(this_month)/1e6;  
-                                % no need to use cos(lat), unit convert from kg/m2/s to kton/month
-                            end
-                        else % regional mean other variables
-                            for rg=1:1:length(mask) % dimension of regions
-                                tmp=reshape(squeeze(output_regrid{ensemble_id(en),var}(:,:,t)).*mask{rg},1,[]);
-                                tmp(isnan(tmp))=[];
-                                CMIP_regional{rg,var}(ensemble_id(en),t)=mean(tmp);  % no need to use cos(lat)
-                            end
-                        end
-                    end
-                end
-            end 
     
         end
     end
@@ -416,8 +354,8 @@ if strcmp(scenario_name,'historical') || strcmp(scenario_name,'ssp370') || strcm
     end
 end
 
-% save both gridded results and regional mean results
-save(['Matlab_monthly_output/',scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','CMIP_regional','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
+% save gridded results
+save(['Matlab_monthly_output/',scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
 
 toc
 disp('<<< Done Saving Rawdata')
