@@ -272,8 +272,7 @@ if  strcmp(scenario_name,'ssp370_lowNTCF') || strcmp(scenario_name,'historical')
 end
 
 % save gridded results
-% save(['Matlab_monthly_output/',scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
-save([scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
+save(['Matlab_monthly_output/',scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
 
 toc
 disp('<<< Done Saving Rawdata')
