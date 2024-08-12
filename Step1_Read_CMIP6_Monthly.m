@@ -7,7 +7,7 @@ tic
 
 %% Control panel
 % scenario
-scenario_name='ssp585'
+scenario_name='historical'
 % note that ssp370_lowNTCF will automatically read in ssp370
 % note that read_global is only for monthly read-in, not for daily read-in
 
@@ -271,91 +271,9 @@ if  strcmp(scenario_name,'ssp370_lowNTCF') || strcmp(scenario_name,'historical')
 
 end
 
-% Combine PM components if no PM2.5 data
-if strcmp(scenario_name,'historical') || strcmp(scenario_name,'ssp370') || strcmp(scenario_name,'ssp585') || strcmp(scenario_name,'ssp370_lowNTCF')
-
-    % get id pointer
-    for var=1:1:length(var_name)
-        switch(var_name{var})
-            case 'mmrpm2p5'
-                pm25_id=var;
-            case 'calculated_pm25'
-                cal_pm25_id=var;
-            case 'mmrbc'
-                bc_id=var;
-            case 'mmroa'
-                oa_id=var;
-            case 'mmrsoa'
-                soa_id=var;
-            case 'mmrdust'
-                dust_id=var;
-            case 'mmrss'
-                ss_id=var;
-            case 'mmrso4'
-                so4_id=var;
-            case 'mmrno3'
-                no3_id=var;            
-            case 'mmrnh4'
-                nh4_id=var;                
-        end
-    end
-
-    for model=1:1:size(output_regrid,1) % dimension of models/ensembles
-
-        % scale PM components (except for 'dust') for INM_CM4_8, parameters from the plot in Step3_plot_SSP_pm25.m (section 'check')
-        if strcmp(model_name{ensemble2model(model)},'INM_CM4_8') 
-            output_regrid{model,bc_id}=output_regrid{model,bc_id}/1e2;
-            output_regrid{model,oa_id}=output_regrid{model,oa_id}/1e2;
-            output_regrid{model,soa_id}=output_regrid{model,soa_id}/1e2;
-            output_regrid{model,ss_id}=output_regrid{model,ss_id}/1e2;
-            output_regrid{model,so4_id}=output_regrid{model,so4_id}/1e2;
-        end
-
-        % if GFDL, get ratio of no3+nh4 to the sum of other components (bc,oa,soa,dust,ss,so4)
-        if model==1
-            pm25=output_regrid{model,pm25_id};
-            no3=output_regrid{model,no3_id};
-            nh4=output_regrid{model,nh4_id};
-            nh4no3_ratio=(no3+nh4)/(pm25-no3-nh4);
-        end
-
-        % calculate pm2.5 by summing up pm2.5 components, if no direct pm2.5 read in 
-        % output{model,pm25_id} will be empty
-        if isempty(output_regrid{model,pm25_id}) 
-            bc=output_regrid{model,bc_id};
-            oa=output_regrid{model,oa_id};
-            soa=output_regrid{model,soa_id};
-            dust=output_regrid{model,dust_id};
-            ss=output_regrid{model,ss_id};
-            so4=output_regrid{model,so4_id};
-    
-            component={bc,oa,soa,dust,ss,so4};
-            coef=[1,1,1,0.1,0.25,1]; % from Turnock et al., 2020
-    
-            % calculated_pm2.5=bc+oa+soa+dust+ss+so4
-            this_data=bc+oa;
-            for i=3:1:length(component)
-                if ~isempty(component{i})
-                    this_data=this_data+coef(i).*component{i};
-                end
-            end
-
-%             % add nh4no3 
-%             this_data=this_data.*(1+nh4no3_ratio);
-
-            output_regrid{model,cal_pm25_id}=this_data;
-
-        else % there is total_pm2.5 (consequently, cal_pm25_id will be empty)
-%             if model>1 % not GFDL, no no3/nh4
-%                 output_regrid{model,pm25_id}=output_regrid{model,pm25_id}.*(1+nh4no3_ratio);
-%             end
-        end
-
-    end
-end
-
 % save gridded results
-save(['Matlab_monthly_output/',scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
+% save(['Matlab_monthly_output/',scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
+save([scenario_name,'_monthly_after_step1.mat'],'rlat','rlon','output_regrid','CMIP_global','model_name','var_name','num_ensemble','ensemble_list','-v7.3')
 
 toc
 disp('<<< Done Saving Rawdata')
